@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "440546254008",
+    "project_id": "dotrip-d7481",
+    "storage_bucket": "dotrip-d7481.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:440546254008:android:6681f57a2120775b07284d",
+        "android_client_info": {
+          "package_name": "com.appdotripnative"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1GwB2DcjzQsxoEnMzxElZ8u2V8Xd8y8I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:440546254008:android:3fa95fee8a72e8e607284d",
+        "android_client_info": {
+          "package_name": "com.dotrip"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1GwB2DcjzQsxoEnMzxElZ8u2V8Xd8y8I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
