@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 import { API_BASE_URL } from '../constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const LoginScreen = ({ navigation }: any) => {
   const [mobile, setMobile] = useState('');
@@ -39,35 +40,39 @@ const LoginScreen = ({ navigation }: any) => {
   }, []);
 
   const handleLogin = async () => {
-    if (!mobile || !password) {
-      Alert.alert('Validation', 'Please enter mobile and password');
-      return;
+  if (!mobile || !password) {
+    Alert.alert('Validation', 'Please enter mobile and password');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identifier: mobile,
+        password,
+        deviceToken,
+      }),
+    });
+
+    const data = await response.json();
+console.log(data);
+    if (response.ok) {
+      // Store token + mobile locally
+      await AsyncStorage.setItem('access_token', data.access_token);
+      await AsyncStorage.setItem('mobile_number', mobile);
+
+      Alert.alert('Success', 'Login successful!');
+      navigation.navigate('Booking');
+    } else {
+      Alert.alert('Login Failed', data.message || 'Invalid credentials');
     }
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mobile,
-          password,
-          deviceToken,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        Alert.alert('Success', 'Login successful!');
-        navigation.navigate('Booking');
-      } else {
-        Alert.alert('Login Failed', data.message || 'Invalid credentials');
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      Alert.alert('Error', 'Something went wrong.');
-    }
-  };
+  } catch (error) {
+    console.error('Login error:', error);
+    Alert.alert('Error', 'Something went wrong.');
+  }
+};
 
   return (
     <View style={styles.container}>
@@ -79,6 +84,8 @@ const LoginScreen = ({ navigation }: any) => {
         keyboardType="phone-pad"
         style={styles.input}
       />
+ 
+      
       <TextInput
         placeholder="Password"
         value={password}
