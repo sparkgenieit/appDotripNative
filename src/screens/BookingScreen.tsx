@@ -1,136 +1,66 @@
 // src/screens/BookingScreen.tsx
+import React, { useMemo, useState } from 'react';
+import { View, StyleSheet } from 'react-native';
+import Step1Search from './booking/Step1Search';
+import Step2SelectCar from './booking/Step2SelectCar';
+import Step3Details from './booking/Step3Details';
 
-import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, Platform } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
-import DateTimePicker from '@react-native-community/datetimepicker';
+export type TripTypeLabel = 'ONE WAY' | 'ROUND TRIP' | 'LOCAL' | 'AIRPORT';
+
+export type SearchState = {
+  tripTypeLabel: TripTypeLabel;
+  fromCityName: string;
+  toCityName: string;
+  pickupDate: string; // "YYYY-MM-DD"
+  pickupTime: string; // "HH:mm"
+  // optional for round trip
+  returnDate?: string;
+  returnTime?: string;
+};
+
+export type SelectedCar = {
+  id?: number;
+  name: string;
+  price: number;
+};
 
 const BookingScreen = () => {
-  const [pickup, setPickup] = useState('');
-  const [drop, setDrop] = useState('');
-  const [tripType, setTripType] = useState('One Way');
-  const [vehicleType, setVehicleType] = useState('Sedan');
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [search, setSearch] = useState<SearchState>({
+    tripTypeLabel: 'ONE WAY',
+    fromCityName: '',
+    toCityName: '',
+    pickupDate: '',
+    pickupTime: '',
+  });
+  const [car, setCar] = useState<SelectedCar | null>(null);
 
-  const [date, setDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
-  const [time, setTime] = useState(new Date());
-  const [showTimePicker, setShowTimePicker] = useState(false);
-
-  const formatDate = (d: Date) =>
-    d.toLocaleDateString('en-CA'); // YYYY-MM-DD
-
-  const formatTime = (t: Date) =>
-    t.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); // HH:MM
-
-  const handleBooking = () => {
-    if (!pickup || !drop || !date || !time) {
-      Alert.alert('Missing Fields', 'Please fill all booking details.');
-      return;
-    }
-    Alert.alert(
-      'Booking Confirmed',
-      `Trip: ${tripType}\nVehicle: ${vehicleType}\nFrom ${pickup} to ${drop} on ${formatDate(date)} at ${formatTime(time)}`
-    );
+  const goStep2 = (s: SearchState) => {
+    setSearch(s);
+    setStep(2);
   };
+  const goStep3 = (c: SelectedCar) => {
+    setCar(c);
+    setStep(3);
+  };
+  const restart = () => {
+    setStep(1);
+    setCar(null);
+  };
+
+  const shared = useMemo(() => ({ search, car }), [search, car]);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Book a Ride</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Pickup Location"
-        value={pickup}
-        onChangeText={setPickup}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Drop Location"
-        value={drop}
-        onChangeText={setDrop}
-      />
-
-      <Text style={styles.label}>Trip Date</Text>
-      <Button title={formatDate(date)} onPress={() => setShowDatePicker(true)} />
-      {showDatePicker && (
-        <DateTimePicker
-          value={date}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(_, selectedDate) => {
-            setShowDatePicker(false);
-            if (selectedDate) setDate(selectedDate);
-          }}
-        />
-      )}
-
-      <Text style={styles.label}>Trip Time</Text>
-      <Button title={formatTime(time)} onPress={() => setShowTimePicker(true)} />
-      {showTimePicker && (
-        <DateTimePicker
-          value={time}
-          mode="time"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(_, selectedTime) => {
-            setShowTimePicker(false);
-            if (selectedTime) setTime(selectedTime);
-          }}
-        />
-      )}
-
-      <Text style={styles.label}>Trip Type</Text>
-      <Picker
-        selectedValue={tripType}
-        style={styles.picker}
-        onValueChange={(itemValue) => setTripType(itemValue)}
-      >
-        <Picker.Item label="One Way" value="One Way" />
-        <Picker.Item label="Round Trip" value="Round Trip" />
-      </Picker>
-
-      <Text style={styles.label}>Vehicle Type</Text>
-      <Picker
-        selectedValue={vehicleType}
-        style={styles.picker}
-        onValueChange={(itemValue) => setVehicleType(itemValue)}
-      >
-        <Picker.Item label="Sedan" value="Sedan" />
-        <Picker.Item label="SUV" value="SUV" />
-        <Picker.Item label="Hatchback" value="Hatchback" />
-      </Picker>
-
-      <Button title="Confirm Booking" onPress={handleBooking} />
+      {step === 1 && <Step1Search onNext={goStep2} initial={search} />}
+      {step === 2 && <Step2SelectCar shared={shared} onNext={goStep3} onBack={() => setStep(1)} />}
+      {step === 3 && <Step3Details shared={shared} onBack={() => setStep(2)} onRestart={restart} />}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 24,
-    backgroundColor: '#fff',
-  },
-  title: {
-    fontSize: 22,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 12,
-    borderRadius: 6,
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 16,
-    marginTop: 10,
-    marginBottom: 4,
-  },
-  picker: {
-    marginBottom: 16,
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
 });
 
 export default BookingScreen;
