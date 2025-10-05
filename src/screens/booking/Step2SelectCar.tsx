@@ -2,10 +2,37 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Button, ActivityIndicator, FlatList, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { inr } from '../../utils/format';
 import type { SelectedCar, SearchState } from '../BookingScreen';
-import { listVehicleTypesRaw, listCities, resolveCityId, calcDistanceKm } from '../../services/booking';
+import { listCities, resolveCityId, calcDistanceKm } from '../../services/booking';
 import { api } from '../../services/http';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../../constants';
+
+// Turn relative paths into absolute (e.g. "/uploads/sedan.jpg" -> "https://api.../uploads/sedan.jpg")
+function absolutize(u?: string): string | undefined {
+  if (!u) return undefined;
+  if (/^https?:\/\//i.test(u) || u.startsWith('data:')) return u;
+  const base = (API_BASE_URL || '').replace(/\/+$/, '');
+  if (!base) return u; // last resort: return as-is
+  return u.startsWith('/') ? `${base}${u}` : `${base}/${u}`;
+}
+
+// Try common fields your backend might use for vehicle images
+function pickVehicleImage(v: any): string | undefined {
+  // flat fields
+  const direct =
+    v.imageUrl || v.image_url || v.image || v.photoUrl || v.photo ||
+    v.picture || v.thumbnail || v.icon || v.coverUrl || v.cover;
+
+  if (direct) return absolutize(String(direct));
+
+  // nested shapes
+  if (v.media?.url) return absolutize(String(v.media.url));
+  if (Array.isArray(v.images) && v.images[0]?.url) return absolutize(String(v.images[0].url));
+  if (Array.isArray(v.photos) && v.photos[0]) return absolutize(String(v.photos[0]));
+  if (v.asset?.url) return absolutize(String(v.asset.url));
+
+  return undefined;
+}
 
 type VehicleLike = {
   id?: number;
@@ -91,17 +118,20 @@ export default function Step2SelectCar({
 
       // --- (E) map to UI and compute fare like web ---
       const mapped = list
-        .map((v) => {
-          const id = Number((v as any)?.id ?? 0);
-          const name = String((v as any)?.name ?? '');
-          const base = Number((v as any)?.baseFare ?? 0);
-          const rate = Number((v as any)?.estimatedRatePerKm ?? 0);
-          const seats = (v as any)?.seatingCapacity;
+  .map((v) => {
+    const id = Number((v as any)?.id ?? 0);
+    const name = String((v as any)?.name ?? '');
+    const base = Number((v as any)?.baseFare ?? 0);
+    const rate = Number((v as any)?.estimatedRatePerKm ?? 0);
+    const seats = (v as any)?.seatingCapacity;
 
-          const price = Math.round(base + (Number.isFinite(distanceKm) ? distanceKm : 0) * rate);
-          return id && name ? { id, name, seats, price, imageUrl: undefined } : null;
-        })
-        .filter(Boolean) as Array<{ id: number; name: string; seats?: number; price: number; imageUrl?: string }>;
+    const price = Math.round(base + (Number.isFinite(distanceKm) ? distanceKm : 0) * rate);
+    const imageUrl = pickVehicleImage(v);
+
+    return id && name ? { id, name, seats, price, imageUrl } : null;
+  })
+  .filter(Boolean) as Array<{ id: number; name: string; seats?: number; price: number; imageUrl?: string }>;
+
 
       // --- (F) user feedback when empty, with reason hints ---
       if (mapped.length === 0 && __DEV__) {
@@ -156,7 +186,7 @@ export default function Step2SelectCar({
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={styles.price}>{inr(item.price)}</Text>
               <TouchableOpacity onPress={() => onNext({ id: item.id, name: item.name, price: item.price })} style={styles.selectBtn}>
-                <Text style={{ color: '#fff', fontWeight: '600' }}>Select</Text>
+                <Text style={{ color: '#fff', fontWeight: '600'}}>Select</Text>
               </TouchableOpacity>
             </View>
           </View>

@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Button, StyleSheet, Alert, Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { toYMD, toHHmm } from '../../utils/format';
 import type { SearchState, TripTypeLabel } from '../BookingScreen';
 import AutocompleteInput from '../../components/AutocompleteInput';
-import { placesAutocomplete } from '../../services/places';
+import { listCities } from '../../services/booking'; 
 
 const tripTypes: TripTypeLabel[] = ['ONE WAY', 'ROUND TRIP', 'LOCAL', 'AIRPORT'];
 
@@ -31,15 +31,46 @@ export default function Step1Search({
   const [showTime, setShowTime] = useState(false);
 
   const [returnDate, setReturnDate] = useState<Date | null>(null);
-  const [returnTime, setReturnTime] = useState<Date | null>(null);
-  const [showRDate, setShowRDate] = useState(false);
-  const [showRTime, setShowRTime] = useState(false);
+const [returnTime, setReturnTime] = useState<Date | null>(null);
+const [showRDate, setShowRDate] = useState(false);
+const [showRTime, setShowRTime] = useState(false);
 
-  const proceed = () => {
-    if (!fromCityName.trim() || !toCityName.trim()) {
-      Alert.alert('Validation', 'Please enter both FROM and TO cities.');
-      return;
+// List of "City, State" like web
+const [allCities, setAllCities] = useState<string[]>([]);
+const [loadingCities, setLoadingCities] = useState(false);
+
+useEffect(() => {
+  let mounted = true;
+  (async () => {
+    try {
+      setLoadingCities(true);
+      const cities = await listCities(); // GET /cities
+      const names = (Array.isArray(cities) ? cities : []).map(
+        (c: any) => `${c?.name ?? ''}${c?.state ? `, ${c.state}` : ''}`.trim()
+      ).filter(Boolean);
+      if (mounted) setAllCities(names);
+    } catch (e) {
+      if (__DEV__) console.log('[Step1] load cities failed', e);
+      if (mounted) setAllCities([]);
+    } finally {
+      if (mounted) setLoadingCities(false);
     }
+  })();
+  return () => { mounted = false; };
+}, []);
+
+// AutocompleteInput expects a Promise<Suggestion[]>. Build from local list.
+const localCityFetcher = async (q: string) => {
+  const query = (q || '').toLowerCase().trim();
+  const pool = !query ? allCities : allCities.filter(c => c.toLowerCase().includes(query));
+  return pool.slice(0, 50).map((label, idx) => ({ id: idx, label }));
+};
+
+const proceed = () => {
+  if (!fromCityName.trim() || !toCityName.trim()) {
+    Alert.alert('Validation', 'Please enter both FROM and TO cities.');
+    return;
+  }
     onNext({
       tripTypeLabel,
       fromCityName: fromCityName.trim(),
@@ -68,20 +99,21 @@ export default function Step1Search({
       </View>
 
       <AutocompleteInput
-        placeholder="FROM (city, state)"
-        value={fromCityName}
-        onChangeText={setFromCityName}
-        fetcher={placesAutocomplete}
-      />
+  placeholder={loadingCities ? 'Loading cities…' : 'FROM (city, state)'}
+  value={fromCityName}
+  onChangeText={setFromCityName}
+  fetcher={localCityFetcher}
+  minChars={0}
+/>
 
-      <View style={{ height: 10 }} />
+<AutocompleteInput
+  placeholder={loadingCities ? 'Loading cities…' : 'TO (city, state)'}
+  value={toCityName}
+  onChangeText={setToCityName}
+  fetcher={localCityFetcher}
+  minChars={0}
+/>
 
-      <AutocompleteInput
-        placeholder="TO (city, state)"
-        value={toCityName}
-        onChangeText={setToCityName}
-        fetcher={placesAutocomplete}
-      />
 
       <Text style={styles.label}>PICKUP DATE</Text>
       <Button title={toYMD(date)} onPress={() => setShowDate(true)} />
